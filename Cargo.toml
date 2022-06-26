@@ -1,0 +1,10 @@
+[package]
+edition = "2021"
+name = "nasutil"
+version = "0.1.0"
+[dependencies]
+anyhow = "*"
+duct = "*"
+lazy_static = "*"
+regex = "1.5.6"
+shellexpand = "*"
