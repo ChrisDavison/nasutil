@@ -1,9 +1,10 @@
 #![allow(unused_macros, dead_code, unused_variables, unused_imports)]
+use crate::util::CrLfLines;
 use anyhow::{anyhow, Result};
 use regex::Regex;
 use std::collections::HashSet;
 use std::fs::read_to_string;
-use std::io::{BufRead, BufReader};
+use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -164,18 +165,25 @@ fn download_from_youtube(url: &str, out_dir: &PathBuf) -> Result<()> {
     .dir(out_dir)
     .reader()?;
     let buf = BufReader::new(cmd_reader);
-    for line in buf.lines().flatten() {
-        let mut title = String::new();
+    let mut title = String::new();
+    for line in CrLfLines::new(buf).flatten() {
+        let blanks = " ".repeat(80);
         if line.contains("Destination") {
-            title = dbg!(line
+            title = line
                 .trim_start_matches("[download] Destination: ")
-                .to_string());
-            print!("\r{title}");
-        } else if line.contains("ETA") {
-            let text = dbg!(line.trim_start_matches("[download]").trim());
-            println!("{}: {}        ", title, text);
+                .split('.')
+                .next()
+                .unwrap()
+                .trim()
+                .to_string();
+        }
+        if line.contains("ETA") {
+            let text = line.trim_start_matches("[download]").trim();
+            print!("\r{blanks}\r{}: {}        ", title, text);
+            std::io::stdout().flush().expect("Couldn't flush output");
         }
     }
+    println!();
     Ok(())
 }
 

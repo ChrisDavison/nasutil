@@ -1,5 +1,6 @@
 #![allow(unused_macros, dead_code, unused_variables, unused_imports)]
 mod download;
+mod util;
 
 #[macro_use]
 extern crate lazy_static;
