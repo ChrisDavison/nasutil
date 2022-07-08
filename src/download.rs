@@ -15,6 +15,7 @@ lazy_static! {
             .unwrap()
             .join("refile")
     };
+    static ref RE_ETA: Regex = Regex::new(".*([0-9]+.[0-9]+%).*ETA (.*)").unwrap();
 }
 
 #[derive(Hash, Eq, PartialEq, Debug, Clone)]
@@ -148,7 +149,6 @@ fn nas_root() -> Option<PathBuf> {
 }
 
 fn download_from_youtube(url: &str, out_dir: &PathBuf) -> Result<()> {
-    println!("{url}");
     let cmd_reader = duct::cmd!(
         "yt-dlp",
         "-f",
@@ -178,8 +178,11 @@ fn download_from_youtube(url: &str, out_dir: &PathBuf) -> Result<()> {
                 .to_string();
         }
         if line.contains("ETA") {
-            let text = line.trim_start_matches("[download]").trim();
-            print!("\r{blanks}\r{}: {}        ", title, text);
+            let m = RE_ETA.captures(&line).unwrap();
+            let pct = m.get(1).unwrap().as_str();
+            let eta = m.get(2).unwrap().as_str();
+            let short_title = &title[..40];
+            print!("\r{blanks}\r{short_title}...: {pct} (ETA {eta})        ");
             std::io::stdout().flush().expect("Couldn't flush output");
         }
     }
