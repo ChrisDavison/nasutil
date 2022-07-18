@@ -90,14 +90,15 @@ impl Downloads {
 
     pub fn add(&mut self, url: Option<impl ToString>) -> Result<()> {
         lazy_static! {
-            static ref RE: Regex = Regex::new(r"\[.*\]\((.+)\)").unwrap();
+            static ref RE: Regex = Regex::new(r"\[.*\]\((.+)(&.*)\)").unwrap();
         }
         if let Some(url) = url {
             let tidy_url = match RE.captures(&url.to_string()) {
                 Some(caps) => caps[1].split('&').next().unwrap().to_string(),
                 None => url.to_string(),
             };
-            self.url_states.insert(Url::Valid(tidy_url));
+            self.url_states
+                .insert(Url::Valid(tidy_url.split('&').next().unwrap().to_string()));
         }
         Ok(())
     }
@@ -181,7 +182,7 @@ fn download_from_youtube(url: &str, out_dir: &PathBuf) -> Result<()> {
             let m = RE_ETA.captures(&line).unwrap();
             let pct = m.get(1).unwrap().as_str();
             let eta = m.get(2).unwrap().as_str();
-            let short_title = &title[..40];
+            let short_title = &title[..40.min(title.len())];
             print!("\r{blanks}\r{short_title}...: {pct} (ETA {eta})        ");
             std::io::stdout().flush().expect("Couldn't flush output");
         }
