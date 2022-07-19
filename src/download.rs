@@ -129,8 +129,10 @@ impl Downloads {
         urls.iter().for_each(|url| {
             out.push_str(&*format!("{}\n", url));
         });
-        std::fs::write(&*crate::FN_DOWNLOADS, out)
-            .map_err(|_| anyhow!("Failed to write urls to file"))
+        std::fs::write(&*crate::FN_DOWNLOADS_BAK, out)
+            .map_err(|_| anyhow!("Failed to write urls to file"))?;
+        std::fs::rename(&*crate::FN_DOWNLOADS_BAK, &*crate::FN_DOWNLOADS)
+            .map_err(|e| anyhow!("Failed to atomically overwrite backup to file. {e}"))
     }
 
     pub fn save(&mut self) -> Result<()> {

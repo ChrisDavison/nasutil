@@ -24,6 +24,9 @@ command
 lazy_static! {
     static ref FN_DOWNLOADS: PathBuf =
         Path::new(&shellexpand::tilde("~/.nasutil-to-download.txt").to_string()[..]).to_path_buf();
+    static ref FN_DOWNLOADS_BAK: PathBuf =
+        Path::new(&shellexpand::tilde("~/.nasutil-to-download.txt.bak").to_string()[..])
+            .to_path_buf();
 }
 
 fn main() {
