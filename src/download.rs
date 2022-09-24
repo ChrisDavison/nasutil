@@ -1,5 +1,5 @@
 #![allow(unused_macros, dead_code, unused_variables, unused_imports)]
-use crate::util::CrLfLines;
+use crate::util::*;
 use anyhow::{anyhow, Result};
 use regex::Regex;
 use std::collections::HashSet;
@@ -7,16 +7,6 @@ use std::fs::read_to_string;
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 use std::process::Command;
-
-lazy_static! {
-    static ref REFILE_DIR: PathBuf = {
-        nas_root()
-            .ok_or_else(|| anyhow!("Couldn't get nas root"))
-            .unwrap()
-            .join("refile")
-    };
-    static ref RE_ETA: Regex = Regex::new(".*([0-9]+.[0-9]+%).*ETA (.*)").unwrap();
-}
 
 #[derive(Hash, Eq, PartialEq, Debug, Clone)]
 enum Url {
@@ -49,7 +39,7 @@ impl Downloads {
             .collect();
         Downloads {
             url_states,
-            out_dir: REFILE_DIR.to_path_buf(),
+            out_dir: crate::util::output_directory().expect("Failed to find output directory"),
             in_file: filepath.to_path_buf(),
         }
     }
@@ -89,11 +79,9 @@ impl Downloads {
     }
 
     pub fn add(&mut self, url: Option<impl ToString>) -> Result<()> {
-        lazy_static! {
-            static ref RE: Regex = Regex::new(r"\[.*\]\((.+)(&.*)\)").unwrap();
-        }
+        let rx: Regex = Regex::new(r"\[.*\]\((.+)(&.*)\)")?;
         if let Some(url) = url {
-            let tidy_url = match RE.captures(&url.to_string()) {
+            let tidy_url = match rx.captures(&url.to_string()) {
                 Some(caps) => caps[1].split('&').next().unwrap().to_string(),
                 None => url.to_string(),
             };
@@ -129,26 +117,15 @@ impl Downloads {
         urls.iter().for_each(|url| {
             out.push_str(&*format!("{}\n", url));
         });
-        std::fs::write(&*crate::FN_DOWNLOADS_BAK, out)
+        std::fs::write(&*download_file_backup(), out)
             .map_err(|_| anyhow!("Failed to write urls to file"))?;
-        std::fs::rename(&*crate::FN_DOWNLOADS_BAK, &*crate::FN_DOWNLOADS)
+        std::fs::rename(&*download_file_backup(), &*download_file())
             .map_err(|e| anyhow!("Failed to atomically overwrite backup to file. {e}"))
     }
 
     pub fn save(&mut self) -> Result<()> {
         Downloads::write_list_of_urls(&self.url_states)
     }
-}
-
-fn nas_root() -> Option<PathBuf> {
-    let options = vec!["/media/nas", "//DAVISON-NAS/918-share", "Y://"];
-    for option in options {
-        let p = Path::new(option);
-        if p.exists() && p.is_dir() {
-            return Some(p.into());
-        }
-    }
-    None
 }
 
 fn download_from_youtube(url: &str, out_dir: &PathBuf) -> Result<()> {
@@ -167,6 +144,9 @@ fn download_from_youtube(url: &str, out_dir: &PathBuf) -> Result<()> {
     )
     .dir(out_dir)
     .reader()?;
+
+    let rx_eta: Regex = Regex::new(".*([0-9]+.[0-9]+%).*ETA (.*)")?;
+
     let buf = BufReader::new(cmd_reader);
     let mut title = String::new();
     for line in CrLfLines::new(buf).flatten() {
@@ -176,12 +156,12 @@ fn download_from_youtube(url: &str, out_dir: &PathBuf) -> Result<()> {
                 .trim_start_matches("[download] Destination: ")
                 .split('.')
                 .next()
-                .unwrap()
+                .unwrap_or("NO TITLE?")
                 .trim()
                 .to_string();
         }
         if line.contains("ETA") {
-            let m = RE_ETA.captures(&line).unwrap();
+            let m = rx_eta.captures(&line).unwrap();
             let pct = m.get(1).unwrap().as_str();
             let eta = m.get(2).unwrap().as_str();
             let short_title = &title[..40.min(title.len())];
@@ -207,14 +187,14 @@ mod test {
             .cloned()
             .collect::<HashSet<Url>>(),
             out_dir: PathBuf::from("."),
-            in_file: crate::FN_DOWNLOADS.to_path_buf(),
+            in_file: download_file(),
         }
     }
 
     #[test]
     fn download_test() {
         let mut dls = dummy_downloads();
-        dls.download().unwrap();
+        dls.download().expect("Failed to dummy download");
         let filename_out = std::path::PathBuf::from("Chaladz---1_sec_VIDEO.mp4");
         assert!(filename_out.exists());
         std::fs::remove_file(filename_out).expect("Couldn't remove downloaded test file");
