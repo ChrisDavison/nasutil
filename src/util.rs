@@ -1,4 +1,6 @@
+use anyhow::{anyhow, Result};
 use std::io::{BufRead, BufReader};
+use std::path::{Path, PathBuf};
 use std::str;
 
 #[derive(Debug)]
@@ -57,5 +59,44 @@ impl<B: BufRead> Iterator for CrLfLines<B> {
         self.buffer.consume(total);
 
         Some(Ok(line))
+    }
+}
+
+pub fn output_directory() -> Result<PathBuf> {
+    if let Ok(var) = std::env::var("NASUTIL_DIR") {
+        Ok(var.into())
+    } else {
+        Ok(nas_root()
+            .ok_or_else(|| anyhow!("Couldn't get nas root"))?
+            .join("syncthing"))
+    }
+}
+
+fn nas_root() -> Option<PathBuf> {
+    let options = vec!["/media/nas", "//DAVISON-NAS/918-share", "Y://"];
+    for option in options {
+        let p = Path::new(option);
+        if p.exists() && p.is_dir() {
+            return Some(p.into());
+        }
+    }
+    None
+}
+
+pub fn download_file() -> PathBuf {
+    match std::env::var("NASUTIL_FILE") {
+        Ok(filename) => Path::new(&filename).to_path_buf(),
+        _ => Path::new(&shellexpand::tilde("~/.nasutil-to-download.txt").to_string()[..])
+            .to_path_buf(),
+    }
+}
+
+pub fn download_file_backup() -> PathBuf {
+    match std::env::var("NASUTIL_BACKUP_FILE") {
+        Ok(filename) => Path::new(&filename).to_path_buf(),
+        _ => {
+            let dl_fn = download_file().to_string_lossy().to_string() + ".bak";
+            Path::new(&dl_fn).into()
+        }
     }
 }

@@ -9,6 +9,7 @@ use crate::download::Downloads;
 use anyhow::*;
 use std::borrow::Cow;
 use std::path::{Path, PathBuf};
+use util::download_file;
 
 const VERSION: &str = "0.1.0";
 const USAGE: &str = "usage: nasutil CMD
@@ -21,16 +22,8 @@ command
     e|empty           list to be downloaded
     ";
 
-lazy_static! {
-    static ref FN_DOWNLOADS: PathBuf =
-        Path::new(&shellexpand::tilde("~/.nasutil-to-download.txt").to_string()[..]).to_path_buf();
-    static ref FN_DOWNLOADS_BAK: PathBuf =
-        Path::new(&shellexpand::tilde("~/.nasutil-to-download.txt.bak").to_string()[..])
-            .to_path_buf();
-}
-
 fn main() {
-    let mut d = Downloads::load_from_file(&FN_DOWNLOADS);
+    let mut d = Downloads::load_from_file(&download_file());
 
     let args: Vec<_> = std::env::args().skip(1).collect();
 
