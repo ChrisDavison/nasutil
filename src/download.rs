@@ -4,7 +4,7 @@ use anyhow::{anyhow, Result};
 use regex::Regex;
 use std::collections::HashSet;
 use std::fs::read_to_string;
-use std::io::{BufRead, BufReader, Write};
+use std::io::{stdin, stdout, BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -80,14 +80,16 @@ impl Downloads {
 
     pub fn add(&mut self, url: Option<impl ToString>) -> Result<()> {
         let rx: Regex = Regex::new(r"\[.*\]\((.+)(&.*)\)")?;
-        if let Some(url) = url {
-            let tidy_url = match rx.captures(&url.to_string()) {
-                Some(caps) => caps[1].split('&').next().unwrap().to_string(),
-                None => url.to_string(),
-            };
-            self.url_states
-                .insert(Url::Valid(tidy_url.split('&').next().unwrap().to_string()));
-        }
+        let url = match url {
+            Some(url) => url.to_string(),
+            None => read_from_stdin("URL: ")?,
+        };
+        let tidy_url = match rx.captures(&url.to_string()) {
+            Some(caps) => caps[1].split('&').next().unwrap().to_string(),
+            None => url,
+        };
+        self.url_states
+            .insert(Url::Valid(tidy_url.split('&').next().unwrap().to_string()));
         Ok(())
     }
 

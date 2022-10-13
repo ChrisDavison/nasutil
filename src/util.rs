@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Result};
-use std::io::BufRead;
+use std::io::{stdin, stdout, BufRead, Write};
 use std::path::{Path, PathBuf};
 use std::str;
 
@@ -99,4 +99,12 @@ pub fn download_file_backup() -> PathBuf {
             Path::new(&dl_fn).into()
         }
     }
+}
+
+pub fn read_from_stdin(prompt: &str) -> Result<String> {
+    print!("{}", prompt);
+    let _ = stdout().flush();
+    let mut response = String::new();
+    stdin().read_line(&mut response)?;
+    Ok(response.trim().to_string())
 }
