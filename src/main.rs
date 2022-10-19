@@ -1,7 +1,7 @@
 mod download;
 mod util;
 
-use crate::download::Downloads;
+use crate::download::*;
 use anyhow::*;
 use util::download_file;
 
@@ -17,7 +17,7 @@ command
     ";
 
 fn main() {
-    let mut d = Downloads::load_from_file(&download_file());
+    // let mut d = Downloads::load_from_file(&download_file());
 
     let args: Vec<_> = std::env::args().skip(1).collect();
 
@@ -26,21 +26,19 @@ fn main() {
         std::process::exit(0);
     }
 
+    let dl_file = download_file();
+    let outdir = util::output_directory().expect("Failed to find output directory");
     let cmd = &args[0];
     if let Err(e) = match cmd.as_ref() {
-        "l" | "list" => d.list_succeeded(),
-        "d" | "download" => d.download(),
+        "l" | "list" => list_downloads(&dl_file),
+        "d" | "download" => download_all(&dl_file, &outdir),
         "v" | "version" => version(),
-        "e" | "empty" => d.empty(),
-        "a" | "add" => d.add(args.get(1)),
+        "e" | "empty" => empty_download_file(&dl_file),
+        "a" | "add" => add_url(args.get(1).cloned(), &dl_file),
         _ => usage(),
     } {
         eprintln!("{e}");
         std::process::exit(1);
-    }
-    if let Err(e) = d.save() {
-        eprintln!("Failed to save after `{cmd}`: {e}");
-        std::process::exit(2);
     }
 }
 

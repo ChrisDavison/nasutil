@@ -1,133 +1,15 @@
-#![allow(unused_macros, dead_code, unused_variables, unused_imports)]
 use crate::util::*;
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use regex::Regex;
-use std::collections::HashSet;
 use std::fs::read_to_string;
-use std::io::{stdin, stdout, BufRead, BufReader, Write};
+use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
-#[derive(Hash, Eq, PartialEq, Debug, Clone)]
-enum Url {
-    Valid(String),
-    Invalid(String),
-}
-
-impl std::fmt::Display for Url {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Url::Valid(url) => write!(f, "{}", url),
-            Url::Invalid(url) => write!(f, "{} FAILED", url),
-        }
+pub fn list_downloads(filename: &Path) -> Result<()> {
+    for line in read_to_string(filename)?.lines() {
+        println!("{line}");
     }
-}
-
-#[derive(Debug)]
-pub struct Downloads {
-    url_states: HashSet<Url>,
-    out_dir: PathBuf,
-    in_file: PathBuf,
-}
-
-impl Downloads {
-    pub fn load_from_file(filepath: &PathBuf) -> Self {
-        let url_states: HashSet<Url> = read_to_string(filepath)
-            .expect("Failed to read file")
-            .lines()
-            .map(|f| Url::Valid(f.to_string()))
-            .collect();
-        Downloads {
-            url_states,
-            out_dir: crate::util::output_directory().expect("Failed to find output directory"),
-            in_file: filepath.to_path_buf(),
-        }
-    }
-
-    pub fn list_succeeded(&self) -> Result<()> {
-        for url in self
-            .url_states
-            .iter()
-            .filter(|url| matches!(url, Url::Valid(_)))
-        {
-            println!("{}", url);
-        }
-        Ok(())
-    }
-
-    pub fn list_failed(&self) -> Result<()> {
-        for url in self
-            .url_states
-            .iter()
-            .filter(|url| matches!(url, Url::Invalid(_)))
-        {
-            println!("{}", url);
-        }
-        Ok(())
-    }
-
-    pub fn summary(&self) -> Result<()> {
-        let (mut n_failed, mut n_to_download) = (0, 0);
-        for url in self.url_states.iter() {
-            match url {
-                Url::Valid(_) => n_to_download += 1,
-                Url::Invalid(_) => n_failed += 1,
-            }
-        }
-        println!("{n_to_download} urls to download. {n_failed} previously failed.\n");
-        Ok(())
-    }
-
-    pub fn add(&mut self, url: Option<impl ToString>) -> Result<()> {
-        let rx: Regex = Regex::new(r"\[.*\]\((.+)(&.*)\)")?;
-        let url = match url {
-            Some(url) => url.to_string(),
-            None => read_from_stdin("URL: ")?,
-        };
-        let tidy_url = match rx.captures(&url.to_string()) {
-            Some(caps) => caps[1].split('&').next().unwrap().to_string(),
-            None => url,
-        };
-        self.url_states
-            .insert(Url::Valid(tidy_url.split('&').next().unwrap().to_string()));
-        Ok(())
-    }
-
-    pub fn download(&mut self) -> Result<()> {
-        for url in self
-            .url_states
-            .iter()
-            .filter(|url| matches!(url, Url::Valid(_)))
-        {
-            let as_str = url.to_string();
-            if as_str.contains("youtube") || as_str.contains("youtu.be") {
-                if let Err(e) = download_from_youtube(&as_str, &self.out_dir) {
-                    eprintln!("Failed to download `{as_str}`: {e}");
-                }
-            }
-        }
-        self.empty()
-    }
-
-    pub fn empty(&mut self) -> Result<()> {
-        self.url_states.clear();
-        Ok(())
-    }
-
-    fn write_list_of_urls(urls: &HashSet<Url>) -> Result<()> {
-        let mut out = String::new();
-        urls.iter().for_each(|url| {
-            out.push_str(&*format!("{}\n", url));
-        });
-        std::fs::write(&*download_file_backup(), out)
-            .map_err(|_| anyhow!("Failed to write urls to file"))?;
-        std::fs::rename(&*download_file_backup(), &*download_file())
-            .map_err(|e| anyhow!("Failed to atomically overwrite backup to file. {e}"))
-    }
-
-    pub fn save(&mut self) -> Result<()> {
-        Downloads::write_list_of_urls(&self.url_states)
-    }
+    Ok(())
 }
 
 fn download_from_youtube(url: &str, out_dir: &PathBuf) -> Result<()> {
@@ -164,6 +46,7 @@ fn download_from_youtube(url: &str, out_dir: &PathBuf) -> Result<()> {
         }
         if line.contains("ETA") {
             let m = rx_eta.captures(&line).unwrap();
+            dbg!(&m);
             let pct = m.get(1).unwrap().as_str();
             let eta = m.get(2).unwrap().as_str();
             let short_title = &title[..40.min(title.len())];
@@ -175,46 +58,64 @@ fn download_from_youtube(url: &str, out_dir: &PathBuf) -> Result<()> {
     Ok(())
 }
 
-mod test {
-    use super::*;
+fn next_url_from_file(filename: &Path) -> Result<Option<String>> {
+    let f = std::fs::File::open(filename)?;
+    let buf = std::io::BufReader::new(f);
+    if let Some(Ok(line)) = buf.lines().next() {
+        Ok(Some(line))
+    } else {
+        Ok(None)
+    }
+}
 
-    fn dummy_downloads() -> Downloads {
-        Downloads {
-            url_states: [
-                Url::Valid("https://www.youtube.com/watch?v=tbnLqRW9Ef0".to_string()),
-                Url::Invalid("news.ycombinator.com".to_string()),
-                Url::Invalid("www.reddit.com".to_string()),
-            ]
-            .iter()
-            .cloned()
-            .collect::<HashSet<Url>>(),
-            out_dir: PathBuf::from("."),
-            in_file: download_file(),
+pub fn download_all(filename: &PathBuf, outdir: &PathBuf) -> Result<()> {
+    loop {
+        match next_url_from_file(filename) {
+            Ok(Some(next_url)) => {
+                download_one(&next_url, outdir)?;
+                remove_link_from_file(&next_url, filename)?;
+            }
+            Ok(None) => break,
+            Err(e) => return Err(e),
         }
     }
+    Ok(())
+}
 
-    #[test]
-    fn download_test() {
-        let mut dls = dummy_downloads();
-        dls.download().expect("Failed to dummy download");
-        let filename_out = std::path::PathBuf::from("Chaladz---1_sec_VIDEO.mp4");
-        assert!(filename_out.exists());
-        std::fs::remove_file(filename_out).expect("Couldn't remove downloaded test file");
+pub fn download_one(url: &str, outdir: &PathBuf) -> Result<()> {
+    let as_str = url.to_string();
+    if as_str.contains("youtube") || as_str.contains("youtu.be") {
+        if let Err(e) = download_from_youtube(&as_str, outdir) {
+            eprintln!("Failed to download `{as_str}`: {e}");
+        }
     }
+    Ok(())
+}
 
-    #[test]
-    fn add_test() {
-        let mut downloads_for_test = dummy_downloads();
-        downloads_for_test.add(Some("www.google.com")).unwrap();
-        assert!(downloads_for_test
-            .url_states
-            .contains(&Url::Valid("www.google.com".into())));
-    }
+pub fn remove_link_from_file(url: &str, filename: &PathBuf) -> Result<()> {
+    let lines = read_to_string(filename)?
+        .lines()
+        .filter(|&l| l != url)
+        .map(|x| x.to_string())
+        .collect::<Vec<String>>()
+        .join("\n");
+    let mut f = std::fs::File::create(filename)?;
+    write!(f, "{lines}")?;
+    Ok(())
+}
 
-    #[test]
-    fn empty_test() {
-        let mut downloads_for_test = dummy_downloads();
-        downloads_for_test.empty().unwrap();
-        assert_eq!(downloads_for_test.url_states, HashSet::new());
+pub fn empty_download_file(filename: &Path) -> Result<()> {
+    std::fs::remove_file(filename)?;
+    std::fs::File::create(filename)?;
+    Ok(())
+}
+
+pub fn add_url(url: Option<String>, filename: &Path) -> Result<()> {
+    let mut f = std::fs::File::options().append(true).open(filename)?;
+    if let Some(url) = url {
+        write!(f, "{url}").expect("HERE");
+    } else {
+        write!(f, "{}", read_from_stdin("URL: ")?)?;
     }
+    Ok(())
 }

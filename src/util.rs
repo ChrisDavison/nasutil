@@ -91,15 +91,6 @@ pub fn download_file() -> PathBuf {
     }
 }
 
-pub fn download_file_backup() -> PathBuf {
-    match std::env::var("NASUTIL_BACKUP_FILE") {
-        Ok(filename) => Path::new(&filename).to_path_buf(),
-        _ => {
-            let dl_fn = download_file().to_string_lossy().to_string() + ".bak";
-            Path::new(&dl_fn).into()
-        }
-    }
-}
 
 pub fn read_from_stdin(prompt: &str) -> Result<String> {
     print!("{}", prompt);
