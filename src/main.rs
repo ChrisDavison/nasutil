@@ -5,7 +5,7 @@ use crate::download::*;
 use anyhow::*;
 use util::download_file;
 
-const VERSION: &str = "0.1.0";
+const VERSION: &str = "0.4.0";
 const USAGE: &str = "usage: nasutil CMD
 
 command
@@ -17,8 +17,6 @@ command
     ";
 
 fn main() {
-    // let mut d = Downloads::load_from_file(&download_file());
-
     let args: Vec<_> = std::env::args().skip(1).collect();
 
     if args.is_empty() {

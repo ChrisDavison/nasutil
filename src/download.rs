@@ -1,7 +1,7 @@
 use crate::util::*;
 use anyhow::Result;
 use regex::Regex;
-use std::fs::read_to_string;
+use std::fs::{read_to_string, remove_file, File};
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 
@@ -59,7 +59,7 @@ fn download_from_youtube(url: &str, out_dir: &PathBuf) -> Result<()> {
 }
 
 fn next_url_from_file(filename: &Path) -> Result<Option<String>> {
-    let f = std::fs::File::open(filename)?;
+    let f = File::open(filename)?;
     let buf = std::io::BufReader::new(f);
     if let Some(Ok(line)) = buf.lines().next() {
         Ok(Some(line))
@@ -99,19 +99,19 @@ pub fn remove_link_from_file(url: &str, filename: &PathBuf) -> Result<()> {
         .map(|x| x.to_string())
         .collect::<Vec<String>>()
         .join("\n");
-    let mut f = std::fs::File::create(filename)?;
+    let mut f = File::create(filename)?;
     write!(f, "{lines}")?;
     Ok(())
 }
 
 pub fn empty_download_file(filename: &Path) -> Result<()> {
-    std::fs::remove_file(filename)?;
-    std::fs::File::create(filename)?;
+    remove_file(filename)?;
+    File::create(filename)?;
     Ok(())
 }
 
 pub fn add_url(url: Option<String>, filename: &Path) -> Result<()> {
-    let mut f = std::fs::File::options().append(true).open(filename)?;
+    let mut f = File::options().append(true).open(filename)?;
     if let Some(url) = url {
         write!(f, "{url}").expect("HERE");
     } else {
