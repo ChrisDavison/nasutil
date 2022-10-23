@@ -12,6 +12,20 @@ pub fn list_downloads(filename: &Path) -> Result<()> {
     Ok(())
 }
 
+pub fn progress(eta: &str, pct: &str) -> String {
+    let pct_int: f32 = pct.strip_suffix('%').unwrap().parse().unwrap();
+    let n_spaces = 20;
+    let n_full = (pct_int as usize) / n_spaces;
+    let med = if n_full < n_spaces { 1 } else { 0 };
+    let light = if n_full < (n_spaces - 1) {
+        n_spaces - med - n_full
+    } else {
+        0
+    };
+    let bar = "=".repeat(n_full) + &">".repeat(med) + &"-".repeat(light);
+    format!("[{bar}] (ETA {eta})")
+}
+
 fn download_from_youtube(url: &str, out_dir: &PathBuf) -> Result<()> {
     let cmd_reader = duct::cmd!(
         "yt-dlp",
@@ -29,7 +43,7 @@ fn download_from_youtube(url: &str, out_dir: &PathBuf) -> Result<()> {
     .dir(out_dir)
     .reader()?;
 
-    let rx_eta: Regex = Regex::new(".*([0-9]+.[0-9]+%).*ETA (.*)")?;
+    let rx_eta: Regex = Regex::new(r#" +(\d*\d*\d\.[0-9]+%).*ETA (.*)"#)?;
 
     let buf = BufReader::new(cmd_reader);
     let mut title = String::new();
@@ -46,11 +60,11 @@ fn download_from_youtube(url: &str, out_dir: &PathBuf) -> Result<()> {
         }
         if line.contains("ETA") {
             let m = rx_eta.captures(&line).unwrap();
-            dbg!(&m);
             let pct = m.get(1).unwrap().as_str();
             let eta = m.get(2).unwrap().as_str();
             let short_title = &title[..40.min(title.len())];
-            print!("\r{blanks}\r{short_title}...: {pct} (ETA {eta})        ");
+            let prog = progress(eta, pct);
+            print!("\r{blanks}\r{short_title}...: {prog}        ");
             std::io::stdout().flush().expect("Couldn't flush output");
         }
     }
@@ -113,9 +127,15 @@ pub fn empty_download_file(filename: &Path) -> Result<()> {
 pub fn add_url(url: Option<String>, filename: &Path) -> Result<()> {
     let mut f = File::options().append(true).open(filename)?;
     if let Some(url) = url {
-        write!(f, "{url}").expect("HERE");
+        let url = url.split('&').next().unwrap().to_string();
+        write!(f, "{url}")?;
     } else {
-        write!(f, "{}", read_from_stdin("URL: ")?)?;
+        let url = read_from_stdin("URL: ")?
+            .split('&')
+            .next()
+            .unwrap()
+            .to_string();
+        write!(f, "{url}")?;
     }
     Ok(())
 }
