@@ -86,11 +86,10 @@ fn nas_root() -> Option<PathBuf> {
 pub fn download_file() -> PathBuf {
     match std::env::var("NASUTIL_FILE") {
         Ok(filename) => Path::new(&filename).to_path_buf(),
-        _ => Path::new(&shellexpand::tilde("~/.nasutil-to-download.txt").to_string()[..])
+        _ => Path::new(&shellexpand::tilde("~/syncthing/.nasutil-to-download.txt").to_string()[..])
             .to_path_buf(),
     }
 }
-
 
 pub fn read_from_stdin(prompt: &str) -> Result<String> {
     print!("{}", prompt);
