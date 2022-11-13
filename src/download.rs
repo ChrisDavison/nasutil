@@ -13,8 +13,8 @@ pub fn list_downloads(filename: &Path) -> Result<()> {
 }
 
 pub fn progress(eta: &str, pct: &str) -> String {
-    let pct_int: f32 = pct.strip_suffix('%').unwrap().parse().unwrap();
-    let n_spaces = 20;
+    let pct_int: i32 = pct.split('.').next().unwrap().parse().unwrap();
+    let n_spaces = 10;
     let n_full = (pct_int as usize) / n_spaces;
     let med = if n_full < n_spaces { 1 } else { 0 };
     let light = if n_full < (n_spaces - 1) {
@@ -128,14 +128,14 @@ pub fn add_url(url: Option<String>, filename: &Path) -> Result<()> {
     let mut f = File::options().append(true).open(filename)?;
     if let Some(url) = url {
         let url = url.split('&').next().unwrap().to_string();
-        write!(f, "{url}")?;
+        write!(f, "{url}\n")?;
     } else {
         let url = read_from_stdin("URL: ")?
             .split('&')
             .next()
             .unwrap()
             .to_string();
-        write!(f, "{url}")?;
+        write!(f, "{url}\n")?;
     }
     Ok(())
 }
