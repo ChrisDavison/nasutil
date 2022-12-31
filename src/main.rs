@@ -3,7 +3,7 @@ mod util;
 
 use crate::download::*;
 use anyhow::*;
-use util::{download_file, url_from_clipboard};
+use util::download_file;
 
 const VERSION: &str = "0.4.0";
 const USAGE: &str = "usage: nasutil CMD
