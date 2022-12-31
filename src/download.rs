@@ -130,11 +130,14 @@ pub fn add_url(url: Option<String>, filename: &Path) -> Result<()> {
         let url = url.split('&').next().unwrap().to_string();
         write!(f, "{url}\n")?;
     } else {
-        let url = read_from_stdin("URL: ")?
-            .split('&')
-            .next()
-            .unwrap()
-            .to_string();
+        let url = match url_from_clipboard() {
+            Ok(Some(url)) => url,
+            _ => read_from_stdin("URL: ")?
+                .split('&')
+                .next()
+                .unwrap()
+                .to_string(),
+        };
         write!(f, "{url}\n")?;
     }
     Ok(())

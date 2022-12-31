@@ -4,6 +4,7 @@ name = "nasutil"
 version = "0.4.0"
 [dependencies]
 anyhow = "*"
+clipboard = "0.5.0"
 duct = "*"
 regex = "1.5.6"
 shellexpand = "*"

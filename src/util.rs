@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Result};
+use clipboard::{ClipboardContext, ClipboardProvider};
 use std::io::{stdin, stdout, BufRead, Write};
 use std::path::{Path, PathBuf};
 use std::str;
@@ -97,4 +98,14 @@ pub fn read_from_stdin(prompt: &str) -> Result<String> {
     let mut response = String::new();
     stdin().read_line(&mut response)?;
     Ok(response.trim().to_string())
+}
+
+pub fn url_from_clipboard() -> Result<Option<String>> {
+    let mut ctx: ClipboardContext = ClipboardProvider::new().unwrap();
+    let url = ctx.get_contents().unwrap_or("".into());
+    if url == String::from("") {
+        Ok(None)
+    } else {
+        Ok(Some(url))
+    }
 }
