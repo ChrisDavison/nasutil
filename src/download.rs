@@ -126,18 +126,19 @@ pub fn empty_download_file(filename: &Path) -> Result<()> {
 
 pub fn add_url(url: Option<String>, filename: &Path) -> Result<()> {
     let mut f = File::options().append(true).open(filename)?;
-    if let Some(url) = url {
-        let url = url.split('&').next().unwrap().to_string();
-        write!(f, "{url}\n")?;
+    let url = if let Some(url) = url {
+        url.split('&').next().unwrap().to_string()
     } else {
-        let url = match url_from_clipboard() {
+        match url_from_clipboard() {
             Ok(Some(url)) => url,
             _ => read_from_stdin("URL: ")?
                 .split('&')
                 .next()
                 .unwrap()
                 .to_string(),
-        };
+        }
+    };
+    if url.contains("youtube") || url.contains("youtu.be") {
         write!(f, "{url}\n")?;
     }
     Ok(())
