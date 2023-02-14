@@ -106,6 +106,9 @@ pub fn url_from_clipboard() -> Result<Option<String>> {
     if url == String::from("") {
         Ok(None)
     } else {
+        let url = url.split('&')
+            .next().unwrap().to_string();
+        let url = url.trim().to_string();
         Ok(Some(url))
     }
 }
