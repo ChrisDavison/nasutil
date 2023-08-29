@@ -124,7 +124,7 @@ pub fn empty_download_file(filename: &Path) -> Result<()> {
     Ok(())
 }
 
-fn tidy_url(url: String) -> String {
+fn tidy_url(url: &str) -> String {
     url.split('&').next().unwrap().to_string()
 }
 
@@ -134,16 +134,15 @@ pub fn add_url(url: Option<String>, filename: &Path) -> Result<()> {
         .lines()
         .map(|x| x.to_string())
         .collect::<std::collections::HashSet<String>>();
-    let url = if let Some(url) = url {
-        tidy_url(url)
-    } else {
+    let url = url.unwrap_or_else(|| {
         match url_from_clipboard() {
             Ok(Some(url)) => url,
-            _ => read_from_stdin("URL: ")?,
+            _ => read_from_stdin("URL: ").unwrap(),
         }
-    };
+    });
     if url.contains("youtube") || url.contains("youtu.be") {
-        urls.insert(tidy_url(url));
+        urls.insert(tidy_url(&url));
+        println!("Added `{}`", url);
         // write each url in the set to filename
         let mut f = File::create(filename)?;
         for url in urls {

@@ -103,7 +103,7 @@ pub fn read_from_stdin(prompt: &str) -> Result<String> {
 pub fn url_from_clipboard() -> Result<Option<String>> {
     let mut ctx: ClipboardContext = ClipboardProvider::new().unwrap();
     let url = ctx.get_contents().unwrap_or("".into());
-    if url == String::from("") {
+    if url == *"" {
         Ok(None)
     } else {
         let url = url.split('&')
