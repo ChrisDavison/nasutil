@@ -25,11 +25,10 @@ fn main() {
     }
 
     let dl_file = download_file();
-    let outdir = util::output_directory().expect("Failed to find output directory");
     let cmd = &args[0];
     if let Err(e) = match cmd.as_ref() {
         "l" | "list" => list_downloads(&dl_file),
-        "d" | "download" => download_all(&dl_file, &outdir),
+        "d" | "download" => download_all(&dl_file),
         "v" | "version" => version(),
         "e" | "empty" => empty_download_file(&dl_file),
         "a" | "add" => add_url(args.get(1).cloned(), &dl_file),

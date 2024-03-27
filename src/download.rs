@@ -82,11 +82,12 @@ fn next_url_from_file(filename: &Path) -> Result<Option<String>> {
     }
 }
 
-pub fn download_all(filename: &PathBuf, outdir: &PathBuf) -> Result<()> {
+pub fn download_all(filename: &PathBuf) -> Result<()> {
+    let outdir = output_directory().expect("Failed to find output directory");
     loop {
         match next_url_from_file(filename) {
             Ok(Some(next_url)) => {
-                download_one(&next_url, outdir)?;
+                download_one(&next_url, &outdir)?;
                 remove_link_from_file(&next_url, filename)?;
             }
             Ok(None) => break,
